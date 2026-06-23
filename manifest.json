@@ -1,0 +1,18 @@
+{
+  "name": "Fashion Designer — Tailor Shop Manager",
+  "short_name": "Fashion Designer",
+  "description": "Manage customers, orders, and measurements — works fully offline.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2EDE4",
+  "theme_color": "#2B2826",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

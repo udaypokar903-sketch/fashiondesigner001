@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2B2826">
+<title>Fashion Designer — Tailor Shop Manager</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink: #2B2826;
+    --ink-soft: #4a443f;
+    --linen: #F2EDE4;
+    --linen-raised: #FBF8F2;
+    --card: #ffffff;
+    --chalk: #D9A23B;
+    --chalk-deep: #B5822A;
+    --thread: #B3492C;
+    --thread-soft: #f1ddd5;
+    --sage: #6B7D5C;
+    --sage-soft: #e3e9dd;
+    --muted: #8B8479;
+    --border: #E3DBCC;
+    --shadow: 0 2px 8px rgba(43,40,38,0.08);
+    --shadow-lift: 0 6px 20px rgba(43,40,38,0.14);
+    --radius: 14px;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; height:100%; background:var(--linen); overscroll-behavior-y: none;}
+  body{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    font-size:15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .display{ font-family:'Fraunces', Georgia, serif; }
+
+  #app{
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    background: var(--linen);
+    padding-bottom: 86px;
+  }
+  #app.hidden{ display:none; }
+  .fab.hidden, .bottom-nav.hidden{ display:none; }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position: sticky; top:0; z-index:20;
+    background: var(--linen);
+    padding: 18px 20px 12px;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    border-bottom: 1px solid transparent;
+  }
+  .topbar.scrolled{ border-bottom-color: var(--border); background: rgba(242,237,228,0.92); backdrop-filter: blur(8px); }
+  .brand{ display:flex; flex-direction:column; gap:2px; }
+  .brand-mark{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; letter-spacing:-0.01em; }
+  .brand-sub{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.09em; }
+  .sync-pill{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; padding:6px 10px; border-radius:20px;
+    background: var(--sage-soft); color: var(--sage); font-weight:600;
+    white-space:nowrap;
+  }
+  .sync-pill.offline{ background:#f1ddd5; color:var(--thread); }
+  .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .dot.pulse{ animation: pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* ---------- Views ---------- */
+  .view{ display:none; padding: 4px 20px 20px; animation: fadein 0.18s ease; }
+  .view.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .section-label{
+    font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted);
+    font-weight:600; margin: 18px 2px 10px;
+  }
+
+  /* ---------- Stat strip ---------- */
+  .stat-strip{ display:flex; gap:10px; margin-top:6px; }
+  .stat-card{
+    flex:1; background:var(--card); border-radius: var(--radius); padding:12px 14px;
+    box-shadow: var(--shadow); border:1px solid var(--border);
+  }
+  .stat-num{ font-family:'Fraunces', serif; font-size:24px; font-weight:600; line-height:1; }
+  .stat-label{ font-size:11px; color:var(--muted); margin-top:4px; }
+  .stat-card.warn .stat-num{ color: var(--thread); }
+
+  /* ---------- Search ---------- */
+  .search-row{ display:flex; gap:8px; margin-top:14px; }
+  .search-box{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background: var(--card); border:1px solid var(--border); border-radius:12px;
+    padding: 11px 14px;
+  }
+  .search-box input{
+    border:none; outline:none; background:transparent; font-size:14px; width:100%;
+    font-family:inherit; color:var(--ink);
+  }
+  .search-box svg{ flex-shrink:0; color:var(--muted); }
+
+  /* ---------- Tag / Order cards (signature element) ---------- */
+  .ticket{
+    position:relative;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px 16px 14px 22px;
+    margin-bottom: 12px;
+    border: 1px dashed var(--border);
+    box-shadow: var(--shadow);
+    display:block;
+    cursor:pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .ticket:active{ transform: scale(0.985); }
+  .ticket::before{
+    content:''; position:absolute; left:8px; top:50%; transform:translateY(-50%);
+    width:8px; height:8px; border-radius:50%; background: var(--linen);
+    border:1px solid var(--border);
+  }
+  .ticket-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .ticket-name{ font-family:'Fraunces', serif; font-weight:600; font-size:17px; }
+  .ticket-meta{ font-size:12.5px; color:var(--muted); margin-top:3px; }
+  .status-tag{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+    padding: 4px 9px; border-radius: 20px; white-space:nowrap; flex-shrink:0;
+  }
+  .status-tag.pending{ background: var(--thread-soft); color: var(--thread); }
+  .status-tag.progress{ background:#fbeed0; color: var(--chalk-deep); }
+  .status-tag.ready{ background: var(--sage-soft); color: var(--sage); }
+  .status-tag.delivered{ background:#e9e6df; color:var(--muted); }
+  .ticket-bottom{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:12px; padding-top:10px; border-top:1px dashed var(--border);
+  }
+  .ticket-due{ font-size:12.5px; color:var(--ink-soft); font-weight:500; }
+  .ticket-due.overdue{ color:var(--thread); font-weight:700; }
+  .ticket-price{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; }
+
+  .empty-state{
+    text-align:center; padding: 50px 20px; color:var(--muted);
+  }
+  .empty-state svg{ margin-bottom:14px; opacity:0.5; }
+  .empty-state p{ font-size:14px; margin:0 0 4px; }
+  .empty-state .hint{ font-size:12.5px; }
+
+  /* ---------- Customer rows ---------- */
+  .customer-row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:10px; cursor:pointer;
+  }
+  .avatar{
+    width:42px; height:42px; border-radius:50%; flex-shrink:0;
+    background: var(--chalk); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:600; font-size:16px;
+  }
+  .customer-info{ flex:1; min-width:0; }
+  .customer-name{ font-weight:600; font-size:14.5px; }
+  .customer-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .chevron{ color:var(--muted); flex-shrink:0; }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    border:none; border-radius:12px; font-family:inherit; font-weight:600; font-size:14px;
+    padding: 13px 18px; cursor:pointer; transition: opacity 0.12s, transform 0.12s;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{ background: var(--ink); color: var(--linen); }
+  .btn-chalk{ background: var(--chalk); color: var(--ink); }
+  .btn-outline{ background:transparent; border:1px solid var(--border); color:var(--ink); }
+  .btn-ghost{ background:transparent; color:var(--thread); }
+  .btn-block{ width:100%; }
+  .btn-sm{ padding:8px 14px; font-size:12.5px; }
+
+  .fab{
+    position:fixed; right:20px; bottom:96px; z-index:25;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--ink); color:var(--linen);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: var(--shadow-lift); border:none; cursor:pointer;
+    max-width: 480px;
+  }
+  .fab:active{ transform: scale(0.93); }
+
+  /* ---------- Bottom nav ---------- */
+  .worker-only{ display:none; }
+
+  .bottom-nav{
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:480px;
+    background: var(--linen-raised);
+    border-top:1px solid var(--border);
+    display:flex; justify-content:space-around;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index:24;
+  }
+  .nav-btn{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:none; border:none; color:var(--muted); font-family:inherit;
+    font-size:10.5px; font-weight:600; padding:6px 10px; cursor:pointer; flex:1;
+  }
+  .nav-btn.active{ color: var(--ink); }
+  .nav-btn svg{ width:22px; height:22px; }
+
+  /* ---------- Modal / sheet ---------- */
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(43,40,38,0.45); z-index:50;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .sheet-overlay.active{ display:flex; }
+  .sheet{
+    background: var(--linen); width:100%; max-width:480px;
+    border-radius: 22px 22px 0 0; max-height:90vh; overflow-y:auto;
+    padding: 14px 20px calc(24px + env(safe-area-inset-bottom));
+    animation: slideup 0.22s ease;
+  }
+  @keyframes slideup{ from{ transform:translateY(30px); opacity:0.5; } to{ transform:translateY(0); opacity:1; } }
+  .sheet-handle{ width:36px; height:4px; background:var(--border); border-radius:4px; margin: 0 auto 14px; }
+  .sheet-title{ font-family:'Fraunces', serif; font-weight:600; font-size:20px; margin-bottom:14px; }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+  .field input, .field select, .field textarea{
+    width:100%; padding:12px 13px; border-radius:11px; border:1px solid var(--border);
+    background: var(--card); font-family:inherit; font-size:14.5px; color:var(--ink); outline:none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ border-color: var(--chalk); }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .row-2{ display:flex; gap:10px; }
+  .row-2 .field{ flex:1; }
+
+  .measure-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .measure-field-wrap{
+    position:relative; background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:10px 10px 12px;
+  }
+  .measure-field-wrap .field{ margin-bottom:0; }
+  .measure-field-wrap .field label{ margin-bottom:7px; }
+  .measure-field-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;
+  }
+  .field-reorder{
+    display:flex; align-items:center; border:1px solid var(--border); border-radius:8px;
+    overflow:hidden; flex-shrink:0;
+  }
+  .field-reorder button{
+    width:26px; height:22px; border:none; background:var(--card); color:var(--ink-soft);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .field-reorder button:first-child{ border-right:1px solid var(--border); }
+  .field-reorder button svg{ width:11px; height:11px; }
+  .field-reorder button:disabled{ opacity:0.3; cursor:default; }
+  .field-reorder button:active:not(:disabled){ background:var(--linen); }
+  .field-remove{
+    width:22px; height:22px; border-radius:7px; flex-shrink:0;
+    background:transparent; color:var(--muted); border:1px solid var(--border); font-size:13px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1;
+    margin-left:6px;
+  }
+  .field-remove:active{ background:var(--thread-soft); color:var(--thread); border-color:var(--thread); }
+  .garment-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:11px 13px; margin-bottom:8px;
+  }
+  .garment-row span{ font-size:14px; font-weight:500; }
+  .garment-row button{
+    background:none; border:none; color:var(--thread); font-size:12.5px; font-weight:600;
+    cursor:pointer; padding:4px 6px;
+  }
+
+  .check-row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:13px 14px; margin-bottom:8px; cursor:pointer;
+  }
+  .check-row input[type="checkbox"]{
+    width:19px; height:19px; flex-shrink:0; accent-color:var(--ink); cursor:pointer;
+  }
+  .check-row span{ font-size:14px; font-weight:500; flex:1; }
+  .check-row .sub{ font-size:12px; color:var(--muted); font-weight:400; }
+
+  /* ---------- Searchable select (customer picker) ---------- */
+  .searchable-select{ position:relative; }
+  .searchable-select input[type="text"]{
+    width:100%; padding:12px 13px; border-radius:11px; border:1px solid var(--border);
+    background:var(--card); font-family:inherit; font-size:14.5px; color:var(--ink); outline:none;
+  }
+  .searchable-select input[type="text"]:focus{ border-color: var(--chalk); }
+  .searchable-dropdown{
+    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:30;
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    max-height:220px; overflow-y:auto; box-shadow:var(--shadow-lift);
+  }
+  .searchable-dropdown.open{ display:block; }
+  .searchable-dropdown-item{
+    padding:11px 14px; font-size:13.5px; cursor:pointer; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  .searchable-dropdown-item:last-child{ border-bottom:none; }
+  .searchable-dropdown-item:hover, .searchable-dropdown-item.highlighted{ background:var(--linen); }
+  .searchable-dropdown-item .sub{ color:var(--muted); font-size:12px; flex-shrink:0; }
+  .searchable-dropdown-empty{ padding:14px; font-size:12.5px; color:var(--muted); text-align:center; }
+
+  /* ---------- Repeat customer match ---------- */
+  .repeat-match-card{
+    display:flex; align-items:center; gap:10px;
+    background: var(--sage-soft); border:1px solid var(--sage); border-radius:11px;
+    padding:10px 12px; margin-bottom:14px; cursor:pointer;
+  }
+  .repeat-match-card .avatar{ width:34px; height:34px; font-size:13px; flex-shrink:0; }
+  .repeat-match-text{ flex:1; font-size:12.5px; line-height:1.4; }
+  .repeat-match-text b{ font-weight:700; color:var(--ink); }
+  .repeat-match-use{
+    font-size:11.5px; font-weight:700; color:var(--sage); text-transform:uppercase; letter-spacing:0.03em;
+    flex-shrink:0;
+  }
+
+  /* ---------- Color swatches ---------- */
+  .color-swatch-row{ display:flex; flex-wrap:wrap; gap:9px; margin-bottom:10px; }
+  .color-swatch{
+    width:30px; height:30px; border-radius:50%; cursor:pointer;
+    border:2px solid transparent; position:relative; flex-shrink:0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+  }
+  .color-swatch.selected{ border-color: var(--ink); }
+  .color-swatch.selected::after{
+    content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:700; text-shadow:0 0 2px rgba(0,0,0,0.5);
+  }
+  .color-custom-row{ display:flex; gap:8px; align-items:center; }
+  .color-custom-row input[type="color"]{
+    width:38px; height:38px; padding:2px; border-radius:10px; border:1px solid var(--border);
+    background:var(--card); cursor:pointer; flex-shrink:0;
+  }
+  .color-custom-row input[type="text"]{
+    padding:10px 12px; border-radius:11px; border:1px solid var(--border);
+    background:var(--card); font-family:inherit; font-size:13.5px; outline:none;
+  }
+  .color-custom-row input[type="text"]:focus{ border-color: var(--chalk); }
+  .color-chip{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;
+  }
+  .color-chip .dot-swatch{
+    width:13px; height:13px; border-radius:50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); flex-shrink:0;
+  }
+
+  /* ---------- Photo upload/preview ---------- */
+  .photo-preview-empty{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    height:120px; border:1.5px dashed var(--border); border-radius:var(--radius);
+    background: var(--card); color:var(--muted); font-size:12.5px; cursor:pointer;
+  }
+  .photo-preview-filled{
+    position:relative; border-radius:var(--radius); overflow:hidden; height:160px; cursor:pointer;
+    border:1px solid var(--border);
+  }
+  .photo-preview-filled img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-remove-btn{
+    position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%;
+    background:rgba(43,40,38,0.7); color:#fff; border:none; display:flex; align-items:center;
+    justify-content:center; font-size:14px; cursor:pointer;
+  }
+  .order-photo-thumb{
+    width:100%; max-height:220px; object-fit:cover; border-radius:var(--radius);
+    margin-top:14px; border:1px solid var(--border); display:block;
+  }
+
+  .sheet-actions{ display:flex; gap:10px; margin-top:6px; position:sticky; bottom:0; padding-top:6px; }
+
+  /* Detail view */
+  .detail-header{ display:flex; align-items:center; gap:12px; margin-bottom:4px; }
+  .back-btn{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .info-card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; margin-top:14px; box-shadow:var(--shadow);
+  }
+  .info-row{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+  .info-row:last-child{ border-bottom:none; }
+  .info-row .k{ color:var(--muted); }
+  .info-row .v{ font-weight:600; text-align:right; }
+
+  .seg{
+    display:flex; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:3px; gap:3px; margin:14px 0;
+  }
+  .seg button{
+    flex:1; border:none; background:transparent; padding:9px 4px; border-radius:9px;
+    font-family:inherit; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer;
+  }
+  .seg button.active{ background: var(--ink); color: var(--linen); }
+
+  #custMeasureTabs{
+    overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch;
+  }
+  #custMeasureTabs button{ flex:0 0 auto; padding:9px 14px; white-space:nowrap; }
+  #custMeasureTabs:empty{ display:none; margin:0; }
+
+  .toast{
+    position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--linen); padding:11px 20px; border-radius:30px;
+    font-size:13px; font-weight:500; z-index:60; box-shadow:var(--shadow-lift);
+    opacity:0; transition: opacity 0.25s, transform 0.25s; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+  ::-webkit-scrollbar{ display:none; }
+
+  /* ---------- Login screen ---------- */
+  #loginScreen{
+    position:fixed; inset:0; z-index:100;
+    background: var(--linen);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  #loginScreen.hidden{ display:none; }
+  .login-box{
+    width:100%; max-width:360px;
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:32px 26px; box-shadow:var(--shadow-lift); text-align:center;
+  }
+  .login-tagicon{
+    width:52px; height:52px; border-radius:50%; background:var(--ink); color:var(--chalk);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+  }
+  .login-title{ font-family:'Fraunces', serif; font-weight:600; font-size:22px; }
+  .login-sub{ font-size:13px; color:var(--muted); margin-top:4px; margin-bottom:22px; }
+  .login-pin-input{
+    width:100%; text-align:center; font-size:24px; letter-spacing:0.3em;
+    padding:14px; border-radius:12px; border:1px solid var(--border);
+    background:var(--linen-raised); font-family:inherit; outline:none;
+  }
+  .login-pin-input:focus{ border-color:var(--chalk); }
+  .login-error{ color:var(--thread); font-size:12.5px; margin-top:10px; min-height:16px; font-weight:600; }
+  .login-status{ color:var(--muted); font-size:12px; margin-top:14px; min-height:14px; }
+  .login-divider{
+    font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em;
+    margin:18px 0; position:relative;
+  }
+  .login-divider::before, .login-divider::after{
+    content:''; position:absolute; top:50%; width:38%; height:1px; background:var(--border);
+  }
+  .login-divider::before{ left:0; }
+  .login-divider::after{ right:0; }
+</style>
+</head>
+<body>
+
+<!-- Firebase SDK (CDN, no build step needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- ============ PIN LOGIN SCREEN ============ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-tagicon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 2h6l1 4H8l1-4zM5 6h14l1 15H4L5 6z"/></svg>
+    </div>
+    <div class="login-title">Fashion Designer</div>
+
+    <div class="seg" id="loginRoleSeg" style="margin-top:18px;">
+      <button class="active" data-role="owner" onclick="switchLoginRole('owner')">Owner</button>
+      <button data-role="worker" onclick="switchLoginRole('worker')">Worker</button>
+    </div>
+
+    <!-- ===== OWNER LOGIN ===== -->
+    <div id="ownerLoginFields">
+      <div class="login-sub" style="margin-top:14px;">Enter your shop PIN to continue</div>
+      <input type="password" id="loginPinInput" class="login-pin-input" inputmode="numeric" maxlength="8" placeholder="• • • •" autocomplete="off">
+      <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="attemptLogin()">Enter shop</button>
+
+      <div class="login-divider">or</div>
+      <button class="btn btn-outline btn-block" onclick="showCreateShop()">Set up a new shop PIN</button>
+
+      <div id="createShopFields" style="display:none; margin-top:16px;">
+        <div class="field"><label>Shop name</label><input type="text" id="newShopName" placeholder="e.g. Rajkot Tailors"></div>
+        <div class="field"><label>Create a PIN</label><input type="password" id="newShopPin" inputmode="numeric" maxlength="8" placeholder="4–8 digits"></div>
+        <div class="field"><label>Confirm PIN</label><input type="password" id="newShopPinConfirm" inputmode="numeric" maxlength="8" placeholder="Re-enter PIN"></div>
+        <button class="btn btn-chalk btn-block" onclick="createShop()">Create shop & enter</button>
+      </div>
+    </div>
+
+    <!-- ===== WORKER LOGIN ===== -->
+    <div id="workerLoginFields" style="display:none;">
+      <div class="login-sub" style="margin-top:14px;">Enter your name and PIN given by your shop owner</div>
+      <div class="field" style="text-align:left;">
+        <label>Your name</label>
+        <input type="text" id="workerLoginName" placeholder="e.g. Ramesh">
+      </div>
+      <div class="field" style="text-align:left; margin-bottom:0;">
+        <label>Your PIN</label>
+        <input type="password" id="workerLoginPin" class="login-pin-input" inputmode="numeric" maxlength="8" placeholder="• • • •" autocomplete="off">
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="attemptWorkerLogin()">Enter shop</button>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+    <div class="login-status" id="loginStatus"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+
+  <div class="topbar" id="topbar">
+    <div class="brand">
+      <span class="brand-mark">Fashion Designer</span>
+      <span class="brand-sub" id="shopName">Your Tailor Shop</span>
+    </div>
+    <div class="sync-pill" id="syncPill">
+      <span class="dot pulse"></span><span id="syncText">Checking…</span>
+    </div>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div class="view active" id="view-home">
+    <div class="stat-strip">
+      <div class="stat-card"><div class="stat-num" id="statActive">0</div><div class="stat-label">Active orders</div></div>
+      <div class="stat-card warn"><div class="stat-num" id="statDue">0</div><div class="stat-label">Due this week</div></div>
+      <div class="stat-card"><div class="stat-num" id="statCustomers">0</div><div class="stat-label">Customers</div></div>
+    </div>
+
+    <div class="search-row">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="homeSearch" placeholder="Search orders or customers…">
+      </div>
+    </div>
+
+    <div class="section-label">Recent orders</div>
+    <div id="homeOrderList"></div>
+  </div>
+
+  <!-- ============ ORDERS ============ -->
+  <div class="view" id="view-orders">
+    <div class="section-label" style="margin-top:14px;">Filter</div>
+    <div class="seg" id="orderFilterSeg">
+      <button class="active" data-filter="all">All</button>
+      <button data-filter="pending">Pending</button>
+      <button data-filter="ready">Ready</button>
+      <button data-filter="delivered">Delivered</button>
+    </div>
+    <div id="ordersList"></div>
+  </div>
+
+  <!-- ============ CUSTOMERS ============ -->
+  <div class="view" id="view-customers">
+    <div class="search-row" style="margin-top:14px;">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="customerSearch" placeholder="Search customers…">
+      </div>
+    </div>
+    <div class="section-label">All customers</div>
+    <div id="customersList"></div>
+  </div>
+
+  <!-- ============ CUSTOMER DETAIL ============ -->
+  <div class="view" id="view-customer-detail">
+    <div class="detail-header">
+      <button class="back-btn" onclick="goTo('customers')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="brand-mark" id="custDetailName" style="font-size:18px; flex:1;">Customer</div>
+      <button class="back-btn" onclick="openEditCustomerSheet(currentCustomerId)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+    <div class="info-card" id="custDetailInfo"></div>
+
+    <div class="section-label">Measurements</div>
+    <div id="custMeasureTabs" class="seg" style="margin-top:0;"></div>
+    <div class="info-card" id="custDetailMeasurements"></div>
+    <div class="row-2" style="margin-top:10px;">
+      <button class="btn btn-outline" style="flex:1;" id="custEditMeasureBtn">Edit measurements</button>
+      <button class="btn btn-chalk" style="flex:1;" id="custPrintMeasureBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
+        Print slip
+      </button>
+    </div>
+
+    <div class="section-label">Order history</div>
+    <div id="custDetailOrders"></div>
+  </div>
+
+  <!-- ============ ORDER DETAIL ============ -->
+  <div class="view" id="view-order-detail">
+    <div class="detail-header">
+      <button class="back-btn" onclick="goBackFromOrder()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="brand-mark" id="orderDetailTitle" style="font-size:18px;">Order</div>
+    </div>
+    <div class="info-card" id="orderDetailInfo"></div>
+    <div id="orderDetailPhotoWrap"></div>
+
+    <div class="section-label">Measurements</div>
+    <div class="info-card" id="orderDetailMeasurements"></div>
+    <div class="row-2" style="margin-top:10px;">
+      <button class="btn btn-outline" style="flex:1;" id="orderEditMeasureBtn">Edit measurements</button>
+      <button class="btn btn-chalk" style="flex:1;" id="orderPrintMeasureBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
+        Print slip
+      </button>
+    </div>
+
+    <button class="btn btn-chalk btn-block" style="margin-top:18px;" onclick="printReceipt(state.currentOrderId)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
+      Print receipt
+    </button>
+
+    <div class="section-label">Update status</div>
+    <div class="seg" id="orderStatusSeg">
+      <button data-status="pending">Pending</button>
+      <button data-status="ready">Ready</button>
+      <button data-status="delivered">Delivered</button>
+    </div>
+
+    <div class="section-label owner-only">Assign to</div>
+    <div class="field owner-only" style="margin-bottom:14px;">
+      <select id="orderAssignSelect" onchange="updateOrderAssignment()">
+        <option value="">Unassigned</option>
+      </select>
+    </div>
+
+    <div class="field owner-only" id="workerPaymentField" style="display:none;">
+      <label>Payment to worker for this order (₹)</label>
+      <input type="number" id="orderWorkerPayment" placeholder="0" onblur="saveWorkerPayment()">
+    </div>
+
+    <div class="section-label">Notes</div>
+    <div class="info-card">
+      <textarea id="orderNotesField" placeholder="Fabric notes, special instructions…" style="width:100%; border:none; outline:none; font-family:inherit; font-size:14px; background:transparent; min-height:60px;"></textarea>
+    </div>
+
+    <button class="btn btn-ghost btn-block owner-only" style="margin-top:18px;" id="deleteOrderBtn">Delete this order</button>
+  </div>
+
+  <!-- ============ MORE / SETTINGS ============ -->
+  <div class="view" id="view-more">
+    <div class="section-label worker-only" style="margin-top:14px;">My earnings</div>
+    <div class="field worker-only">
+      <select id="workerEarningsMonthSelect" onchange="renderWorkerEarnings()"></select>
+    </div>
+    <div class="info-card worker-only" id="workerEarningsCard"></div>
+
+    <div class="section-label owner-only" style="margin-top:14px;">Shop</div>
+    <div class="info-card owner-only">
+      <div class="field" style="margin-bottom:0;">
+        <label>Shop name</label>
+        <input type="text" id="shopNameInput" placeholder="e.g. Rajkot Tailors">
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block owner-only" style="margin-top:10px;" onclick="saveShopName()">Save shop name</button>
+
+    <div class="section-label owner-only" style="margin-top:14px;">Security</div>
+    <div class="info-card owner-only">
+      <div class="field"><label>Current PIN</label><input type="password" id="changePinCurrent" inputmode="numeric" maxlength="8" placeholder="Current PIN" autocomplete="off"></div>
+      <div class="field"><label>New PIN</label><input type="password" id="changePinNew" inputmode="numeric" maxlength="8" placeholder="4–8 digits" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:0;"><label>Confirm new PIN</label><input type="password" id="changePinConfirm" inputmode="numeric" maxlength="8" placeholder="Re-enter new PIN" autocomplete="off"></div>
+    </div>
+    <div class="login-error" id="changePinError" style="text-align:left; padding:0 4px;"></div>
+    <button class="btn btn-chalk btn-block owner-only" style="margin-top:10px;" onclick="changeShopPin()">Change shop PIN</button>
+
+    <div class="section-label owner-only">Workers</div>
+    <div id="workersList" class="owner-only"></div>
+    <div class="info-card owner-only">
+      <div class="field"><label>Worker name</label><input type="text" id="newWorkerName" placeholder="e.g. Ramesh"></div>
+      <div class="field" style="margin-bottom:0;"><label>Worker PIN</label><input type="password" id="newWorkerPin" inputmode="numeric" maxlength="8" placeholder="4–8 digits"></div>
+    </div>
+    <button class="btn btn-chalk btn-block owner-only" style="margin-top:10px;" onclick="addWorker()">Add worker</button>
+
+    <div class="section-label owner-only">Income</div>
+    <div class="field owner-only">
+      <select id="incomeMonthSelect" onchange="renderIncomeReport()"></select>
+    </div>
+    <div class="info-card owner-only" id="incomeSummaryCard"></div>
+    <div class="section-label owner-only" style="margin-top:14px;">Worker payments this month</div>
+    <div class="info-card owner-only" id="incomeWorkerCard"></div>
+    <button class="btn btn-outline btn-block owner-only" style="margin-top:10px;" onclick="downloadIncomeCSV()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Download this month (.csv)
+    </button>
+
+    <div class="section-label owner-only">Measurement settings</div>
+    <button class="btn btn-outline btn-block owner-only" onclick="openWordFieldManager()">Manage style fields (Neck Shape, etc.)</button>
+
+    <div class="section-label">Data</div>
+    <div class="info-card" style="display:flex; flex-direction:column; gap:10px;">
+      <div class="info-row"><span class="k">Storage</span><span class="v">On this device + cloud</span></div>
+      <div class="info-row"><span class="k">Works offline</span><span class="v">Yes — always</span></div>
+      <div class="info-row"><span class="k">Total orders</span><span class="v" id="moreTotalOrders">0</span></div>
+      <div class="info-row"><span class="k">Total customers</span><span class="v" id="moreTotalCustomers">0</span></div>
+    </div>
+    <button class="btn btn-outline btn-block owner-only" style="margin-top:10px;" onclick="exportData()">Export backup (.json)</button>
+    <label class="btn btn-outline btn-block owner-only" style="margin-top:10px; display:flex;">
+      Import backup
+      <input type="file" accept=".json" id="importFile" style="display:none;">
+    </label>
+    <button class="btn btn-outline btn-block" style="margin-top:18px;" onclick="logoutShop()">Log out</button>
+    <button class="btn btn-ghost btn-block owner-only" style="margin-top:10px;" onclick="confirmWipe()">Erase all data</button>
+
+    <div class="section-label">About</div>
+    <p style="font-size:12.5px; color:var(--muted); line-height:1.6; padding:0 4px;">
+      Fashion Designer stores everything on this device and syncs to the cloud, so it works with no internet connection at all and stays in sync once you're back online. Add it to your home screen for the best experience — open your browser menu and choose "Add to Home Screen".
+    </p>
+  </div>
+
+</div>
+
+<button class="fab" id="fabAdd">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<div class="bottom-nav">
+  <button class="nav-btn active" data-view="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+    Home
+  </button>
+  <button class="nav-btn" data-view="orders">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6l1 4H8l1-4zM5 6h14l1 15H4L5 6z"/></svg>
+    Orders
+  </button>
+  <button class="nav-btn owner-only" data-view="customers">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 016-6h4a6 6 0 016 6v2"/></svg>
+    Customers
+  </button>
+  <button class="nav-btn" data-view="more">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+    More
+  </button>
+</div>
+
+<!-- ============ NEW ORDER SHEET ============ -->
+<div class="sheet-overlay" id="orderSheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">New order</div>
+
+    <div class="field">
+      <label>Customer</label>
+      <div class="searchable-select" id="customerPickerWrap">
+        <input type="text" id="customerPickerInput" placeholder="Search customer by name or phone…" autocomplete="off">
+        <input type="hidden" id="newOrderCustomer" value="">
+        <div class="searchable-dropdown" id="customerPickerDropdown"></div>
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" style="margin:-6px 0 14px;" onclick="toggleNewCustomerFields()">+ New customer instead</button>
+
+    <div id="newCustomerFields" style="display:none;">
+      <div class="field"><label>Customer name</label><input type="text" id="newOrderCustomerName" placeholder="Full name"></div>
+      <div class="field" style="margin-bottom:6px;"><label>Phone</label><input type="tel" id="newOrderCustomerPhone" placeholder="Phone number"></div>
+      <div id="repeatCustomerMatch" style="display:none;"></div>
+    </div>
+
+    <div class="row-2">
+      <div class="field"><label>Garment type</label>
+        <select id="newOrderGarment"></select>
+      </div>
+      <div class="field"><label>Quantity</label><input type="number" id="newOrderQty" value="1" min="1"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" style="margin:-6px 0 14px;" onclick="openSheet('garmentManageOverlay')">Manage garment types</button>
+
+    <div class="row-2">
+      <div class="field"><label>Order date</label><input type="date" id="newOrderDate"></div>
+      <div class="field"><label>Delivery date</label><input type="date" id="newOrderDue"></div>
+    </div>
+
+    <div class="row-2">
+      <div class="field"><label>Total price (₹)</label><input type="number" id="newOrderPrice" placeholder="0"></div>
+      <div class="field"><label>Advance paid (₹)</label><input type="number" id="newOrderAdvance" placeholder="0"></div>
+    </div>
+
+    <div class="field">
+      <label>Garment colour</label>
+      <div class="color-swatch-row" id="newOrderColorSwatches"></div>
+      <div class="color-custom-row">
+        <input type="color" id="newOrderColorPicker" value="#8B8479">
+        <input type="text" id="newOrderColorName" placeholder="Colour name, e.g. Maroon" style="flex:1;">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Garment photo</label>
+      <div id="newOrderPhotoPreview" class="photo-preview-empty" onclick="document.getElementById('newOrderPhotoInput').click()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h3l2-3h6l2 3h3v13H4V7z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <span>Tap to add a photo</span>
+      </div>
+      <input type="file" id="newOrderPhotoInput" accept="image/*" style="display:none;">
+    </div>
+
+    <div class="field">
+      <label>Fabric / notes</label>
+      <textarea id="newOrderNotes" placeholder="e.g. Customer's own cotton fabric, slim fit"></textarea>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('orderSheetOverlay')">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveNewOrder()">Save order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NEW CUSTOMER SHEET ============ -->
+<div class="sheet-overlay" id="customerSheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">New customer</div>
+    <div class="field"><label>Full name</label><input type="text" id="custName" placeholder="Customer name"></div>
+    <div class="field"><label>Phone</label><input type="tel" id="custPhone" placeholder="Phone number"></div>
+    <div class="field"><label>Address (optional)</label><textarea id="custAddress" placeholder="Address"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('customerSheetOverlay')">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveNewCustomer()">Save customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDIT CUSTOMER SHEET ============ -->
+<div class="sheet-overlay" id="editCustomerOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Edit customer</div>
+    <div class="field"><label>Full name</label><input type="text" id="editCustName" placeholder="Customer name"></div>
+    <div class="field"><label>Phone</label><input type="tel" id="editCustPhone" placeholder="Phone number"></div>
+    <div class="field"><label>Address (optional)</label><textarea id="editCustAddress" placeholder="Address"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" style="flex:1;" onclick="deleteCurrentCustomer()">Delete customer</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveEditedCustomer()">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANAGE GARMENT TYPES SHEET ============ -->
+<div class="sheet-overlay" id="garmentManageOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Garment types</div>
+    <div class="search-row" style="margin-top:0;">
+      <div class="search-box">
+        <input type="text" id="newGarmentInput" placeholder="e.g. Saree, Coat…">
+      </div>
+      <button class="btn btn-chalk" style="flex-shrink:0;" onclick="addGarmentType()">Add</button>
+    </div>
+    <div id="garmentTypeList" style="margin-top:14px;"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-block" onclick="closeSheet('garmentManageOverlay'); populateGarmentSelect();">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANAGE WORD MEASUREMENT FIELDS SHEET ============ -->
+<div class="sheet-overlay" id="wordFieldManageOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Style fields</div>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 14px;">Fields like Neck Shape use a list of word choices instead of numbers. Manage the fields and their choices here.</p>
+
+    <div class="search-row" style="margin-top:0;">
+      <div class="search-box">
+        <input type="text" id="newWordFieldInput" placeholder="New style field, e.g. Sleeve Style">
+      </div>
+      <button class="btn btn-chalk" style="flex-shrink:0;" onclick="addWordField()">Add</button>
+    </div>
+    <div id="wordFieldsList" style="margin-top:14px;"></div>
+
+    <div class="sheet-actions">
+      <button class="btn btn-primary btn-block" onclick="closeSheet('wordFieldManageOverlay')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANAGE WORD FIELD CHOICES SHEET ============ -->
+<div class="sheet-overlay" id="wordChoiceManageOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="wordChoiceFieldTitle">Choices</div>
+    <div class="search-row" style="margin-top:0;">
+      <div class="search-box">
+        <input type="text" id="newWordChoiceInput" placeholder="e.g. Round neck">
+      </div>
+      <button class="btn btn-chalk" style="flex-shrink:0;" onclick="addWordChoice()">Add</button>
+    </div>
+    <div id="wordChoicesList" style="margin-top:14px;"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline btn-block" onclick="closeSheet('wordChoiceManageOverlay'); openSheet('wordFieldManageOverlay');">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SELECT GARMENTS TO PRINT SHEET ============ -->
+<div class="sheet-overlay" id="slipGarmentPickerOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Print measurement slip</div>
+    <p style="font-size:12.5px; color:var(--muted); margin:-6px 0 14px;">Choose which garment's measurements to include.</p>
+    <div id="slipGarmentCheckboxList"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('slipGarmentPickerOverlay')">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="confirmPrintSelectedSlip()">Print selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MEASUREMENTS SHEET ============ -->
+<div class="sheet-overlay" id="measureSheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Measurements</div>
+
+    <div class="field">
+      <label>Garment type</label>
+      <select id="measureGarmentSelect" onchange="onMeasureGarmentChange()"></select>
+      <input type="text" id="measureGarmentCustomInput" placeholder="Type garment name…" style="margin-top:8px; display:none;" onblur="onMeasureGarmentCustomConfirm()" onkeydown="if(event.key==='Enter') this.blur()">
+    </div>
+
+    <div class="seg" id="measureUnitSeg">
+      <button class="active" data-unit="in">Inches</button>
+      <button data-unit="cm">Centimeters</button>
+    </div>
+    <div class="measure-grid" id="measureGrid"></div>
+    <div class="search-row" style="margin-top:4px;">
+      <div class="search-box">
+        <input type="text" id="newMeasureFieldInput" placeholder="New field name, e.g. Bicep">
+      </div>
+      <button class="btn btn-outline" style="flex-shrink:0;" onclick="addMeasureField()">+ Add</button>
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <label>Extra notes</label>
+      <textarea id="measureNotes" placeholder="Fit preferences, posture notes, etc."></textarea>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('measureSheetOverlay')">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveMeasurements()">Save measurements</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
