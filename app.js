@@ -1544,7 +1544,13 @@ function renderMeasureGrid(){
           value="${isCustomVal?escapeHTML(currentVal):''}" placeholder="Type your own…"
           style="margin-top:8px; ${isCustomVal?'':'display:none;'}">`;
     } else if(isCommaListField(f)){
-      control = `<input type="text" inputmode="decimal" data-field="${escapeHTML(f)}" data-role="comma-list" value="${escapeHTML(currentVal)}" placeholder="e.g. 5,8,11,23">`;
+      const fid = `cl-${i}`;
+      control = `
+        <div style="display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-chalk" style="padding:4px 12px; font-size:12px;"
+            onclick="document.getElementById('${fid}').value='Round'; document.getElementById('${fid}').dispatchEvent(new Event('input'));">Round</button>
+        </div>
+        <input type="text" inputmode="decimal" id="${fid}" data-field="${escapeHTML(f)}" data-role="comma-list" value="${escapeHTML(currentVal)}" placeholder="Round, or e.g. 5,8,11,23">`;
     } else {
       control = `<input type="number" step="0.1" data-field="${escapeHTML(f)}" value="${escapeHTML(currentVal)}" placeholder="0.0">`;
     }
