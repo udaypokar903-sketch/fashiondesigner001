@@ -2193,13 +2193,14 @@ function updateBackupReminder(){
     labelEl.textContent = lastAt ? formatDate(new Date(lastAt).toISOString().slice(0,10)) : 'Never';
   }
   if(!bannerEl || !textEl) return;
+  if(state.currentUserRole === 'worker'){ bannerEl.style.display = 'none'; return; }
 
   const daysSince = lastAt ? Math.floor((Date.now() - lastAt) / (1000*60*60*24)) : null;
   if(daysSince === null){
-    bannerEl.style.display = '';
+    bannerEl.style.display = 'block';
     textEl.textContent = "You haven't saved a backup yet — download one to keep your data safe on your computer too.";
   } else if(daysSince >= 15){
-    bannerEl.style.display = '';
+    bannerEl.style.display = 'block';
     textEl.textContent = `It's been ${daysSince} days since your last backup — save a fresh copy to your computer.`;
   } else {
     bannerEl.style.display = 'none';
