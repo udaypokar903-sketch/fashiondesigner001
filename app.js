@@ -650,13 +650,22 @@ function renderHomeOrders(){
 }
 
 function renderOrdersList(){
+  const q = (document.getElementById('orderSearch').value || '').toLowerCase().trim();
   let orders = [...visibleOrders()];
   if(state.orderFilter !== 'all'){
     orders = orders.filter(o=>o.status === state.orderFilter);
   }
+  if(q){
+    orders = orders.filter(o=>{
+      const cust = customerById(o.customerId);
+      return (cust && cust.name.toLowerCase().includes(q)) ||
+        (cust && (cust.phone||'').includes(q)) ||
+        o.garment.toLowerCase().includes(q);
+    });
+  }
   orders.sort((a,b)=> (a.dueDate||'9999').localeCompare(b.dueDate||'9999'));
   const el = document.getElementById('ordersList');
-  el.innerHTML = orders.length ? orders.map(ticketHTML).join('') : emptyStateHTML('No orders here', 'Try a different filter or add a new order');
+  el.innerHTML = orders.length ? orders.map(ticketHTML).join('') : emptyStateHTML('No orders here', 'Try a different filter or search');
 }
 
 
@@ -2341,6 +2350,7 @@ function bindEvents(){
 
   document.getElementById('homeSearch').addEventListener('input', renderHomeOrders);
   document.getElementById('customerSearch').addEventListener('input', renderCustomersList);
+  document.getElementById('orderSearch').addEventListener('input', renderOrdersList);
   document.getElementById('newOrderCustomerPhone').addEventListener('input', checkRepeatCustomer);
 
   const pickerInput = document.getElementById('customerPickerInput');
