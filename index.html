@@ -697,14 +697,22 @@
     <div class="section-label owner-only">Measurement settings</div>
     <button class="btn btn-outline btn-block owner-only" onclick="openWordFieldManager()">Manage style fields (Neck Shape, etc.)</button>
 
+    <div class="section-label owner-only" id="backupReminderBanner" style="display:none;">
+      <div class="info-card" style="background:#fff7e6; border:1px solid #f0c36d; color:#7a5200;">
+        <span id="backupReminderText">It's been a while since your last backup — save a copy to your computer.</span>
+      </div>
+    </div>
+
     <div class="section-label">Data</div>
     <div class="info-card" style="display:flex; flex-direction:column; gap:10px;">
       <div class="info-row"><span class="k">Storage</span><span class="v">On this device + cloud</span></div>
       <div class="info-row"><span class="k">Works offline</span><span class="v">Yes — always</span></div>
       <div class="info-row"><span class="k">Total orders</span><span class="v" id="moreTotalOrders">0</span></div>
       <div class="info-row"><span class="k">Total customers</span><span class="v" id="moreTotalCustomers">0</span></div>
+      <div class="info-row owner-only"><span class="k">Last backup saved</span><span class="v" id="lastBackupDateLabel">Never</span></div>
     </div>
-    <button class="btn btn-outline btn-block owner-only" style="margin-top:10px;" onclick="exportData()">Export backup (.json)</button>
+    <button class="btn btn-outline btn-block owner-only" style="margin-top:10px;" onclick="exportData()">Export full backup (.json)</button>
+    <button class="btn btn-outline btn-block owner-only" style="margin-top:10px;" onclick="exportRecentData(15)">Download last 15 days (.json)</button>
     <label class="btn btn-outline btn-block owner-only" style="margin-top:10px; display:flex;">
       Import backup
       <input type="file" accept=".json" id="importFile" style="display:none;">

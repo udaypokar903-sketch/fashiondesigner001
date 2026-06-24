@@ -578,6 +578,7 @@ function renderAll(){
   }
   document.getElementById('moreTotalOrders').textContent = visibleOrders().length;
   document.getElementById('moreTotalCustomers').textContent = state.customers.length;
+  updateBackupReminder();
 }
 
 function visibleOrders(){
@@ -2167,6 +2168,35 @@ async function changeShopPin(){
 }
 
 /* ---------------- Backup / restore ---------------- */
+function recordBackupSaved(){
+  const now = Date.now();
+  localStorage.setItem('fd-last-backup-at', String(now));
+  updateBackupReminder();
+}
+
+function updateBackupReminder(){
+  const labelEl = document.getElementById('lastBackupDateLabel');
+  const bannerEl = document.getElementById('backupReminderBanner');
+  const textEl = document.getElementById('backupReminderText');
+  const lastAt = parseInt(localStorage.getItem('fd-last-backup-at') || '0', 10);
+
+  if(labelEl){
+    labelEl.textContent = lastAt ? formatDate(new Date(lastAt).toISOString().slice(0,10)) : 'Never';
+  }
+  if(!bannerEl || !textEl) return;
+
+  const daysSince = lastAt ? Math.floor((Date.now() - lastAt) / (1000*60*60*24)) : null;
+  if(daysSince === null){
+    bannerEl.style.display = '';
+    textEl.textContent = "You haven't saved a backup yet — download one to keep your data safe on your computer too.";
+  } else if(daysSince >= 15){
+    bannerEl.style.display = '';
+    textEl.textContent = `It's been ${daysSince} days since your last backup — save a fresh copy to your computer.`;
+  } else {
+    bannerEl.style.display = 'none';
+  }
+}
+
 function exportData(){
   const payload = {
     exportedAt: new Date().toISOString(),
@@ -2183,7 +2213,46 @@ function exportData(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  recordBackupSaved();
   showToast('Backup downloaded');
+}
+
+function exportRecentData(days){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+
+  const recentOrders = state.orders.filter(o => (o.orderDate || '') >= cutoffStr);
+  const recentCustomerIds = new Set(recentOrders.map(o => o.customerId));
+  const recentCustomers = state.customers.filter(c =>
+    recentCustomerIds.has(c.id) ||
+    (c.createdAt && new Date(c.createdAt).toISOString().slice(0,10) >= cutoffStr)
+  );
+
+  if(recentOrders.length === 0 && recentCustomers.length === 0){
+    showToast(`No activity in the last ${days} days`);
+    return;
+  }
+
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    rangeDays: days,
+    rangeFrom: cutoffStr,
+    shopName: state.shopName,
+    customers: recentCustomers,
+    orders: recentOrders
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fashion-designer-last-${days}-days-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  recordBackupSaved();
+  showToast(`Last ${days} days downloaded`);
 }
 
 function handleImportFile(e){
