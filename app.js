@@ -42,7 +42,8 @@ const DEFAULT_MEASURE_SET = ['Chest/Bust','Waist','Hip','Shoulder','Sleeve lengt
 const WORD_MEASURE_FIELDS = {
   'Neck Shape': ['Round neck','V-neck','Boat neck','Collar','Mandarin collar','Sweetheart','Halter','Square neck','Off-shoulder'],
   'Collar Style': ['Classic collar','Mandarin collar','Spread collar','Button-down','Band collar','No collar'],
-  'Fit Type': ['Slim fit','Regular fit','Loose fit','Relaxed fit']
+  'Fit Type': ['Slim fit','Regular fit','Loose fit','Relaxed fit'],
+  'Sleeve Style': ['Round','Straight','Bell','Puff','Cap sleeve','Full sleeve','Half sleeve','Sleeveless']
 };
 
 // Fields that accept multiple comma-separated numbers in one box (e.g. "5,8,11,23")
@@ -1524,7 +1525,11 @@ function renderMeasureGrid(){
   const grid = document.getElementById('measureGrid');
   grid.innerHTML = state.measureFields.map((f, i)=>{
     const wordOptions = getWordOptionsFor(f);
-    const currentVal = state.measureValues[f] || '';
+    let currentVal = state.measureValues[f] || '';
+    if(!currentVal && wordOptions && wordOptions.length && /sleeve/i.test(f) && wordOptions.includes('Round')){
+      currentVal = 'Round';
+      state.measureValues[f] = currentVal;
+    }
 
     let control;
     if(wordOptions){
