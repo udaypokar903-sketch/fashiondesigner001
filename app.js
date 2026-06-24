@@ -848,6 +848,56 @@ async function removeWordField(name){
 
 let activeWordField = null;
 
+async function promptRenameWordField(){
+  const oldName = activeWordField;
+  if(!oldName) return;
+  const newName = (prompt(`Rename "${oldName}" to:`, oldName) || '').trim();
+  if(!newName || newName === oldName) return;
+  if(state.wordMeasureFields[newName]){
+    showToast('A field with that name already exists');
+    return;
+  }
+
+  // 1) Move the choices list to the new key
+  state.wordMeasureFields[newName] = state.wordMeasureFields[oldName] || [];
+  delete state.wordMeasureFields[oldName];
+  await persistWordMeasureFields();
+
+  // 2) Update every garment field template that mentions the old name
+  Object.keys(state.garmentFieldTemplates).forEach(key=>{
+    state.garmentFieldTemplates[key] = state.garmentFieldTemplates[key].map(f=>
+      f.toLowerCase() === oldName.toLowerCase() ? newName : f
+    );
+  });
+  await dbPut('meta', { key:'garmentFieldTemplates', value:state.garmentFieldTemplates });
+  syncShopMeta({ garmentFieldTemplates: state.garmentFieldTemplates });
+
+  // 3) Update every customer's already-saved measurements that used the old field name
+  for(const c of state.customers){
+    const byGarment = getMeasurementsByGarment(c);
+    let changed = false;
+    Object.keys(byGarment).forEach(garment=>{
+      const values = byGarment[garment] && byGarment[garment].values;
+      if(values && Object.prototype.hasOwnProperty.call(values, oldName)){
+        values[newName] = values[oldName];
+        delete values[oldName];
+        changed = true;
+      }
+    });
+    if(changed){
+      c.measurementsByGarment = byGarment;
+      await dbPut('customers', c);
+      syncToCloud('customers', c);
+    }
+  }
+
+  activeWordField = newName;
+  document.getElementById('wordChoiceFieldTitle').textContent = newName + ' choices';
+  renderWordChoicesList();
+  renderWordFieldsManager();
+  showToast(`Renamed to "${newName}"`);
+}
+
 function openWordChoiceManager(fieldName){
   activeWordField = fieldName;
   document.getElementById('wordChoiceFieldTitle').textContent = fieldName + ' choices';
