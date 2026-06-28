@@ -1903,6 +1903,20 @@ function openPrintWindow(bodyHTML, pageRule, css, maxWidthMm, isSlip){
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = '0';
+
+  let printed = false;
+  function doPrint(){
+    if(printed) return;
+    printed = true;
+    try{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }catch(err){
+      showToast('Could not open print dialog — try again');
+    }
+  }
+  iframe.onload = function(){ setTimeout(doPrint, 200); };
+
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow.document;
@@ -1910,16 +1924,9 @@ function openPrintWindow(bodyHTML, pageRule, css, maxWidthMm, isSlip){
   doc.write(html);
   doc.close();
 
-  iframe.onload = function(){
-    setTimeout(function(){
-      try{
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      }catch(err){
-        showToast('Could not open print dialog — try again');
-      }
-    }, 200);
-  };
+  // Fallback in case the load event doesn't fire (some Chrome/Firefox versions
+  // with document.write into an iframe) — guarantees print still triggers.
+  setTimeout(doPrint, 600);
 }
 
 function printReceipt(orderId){
