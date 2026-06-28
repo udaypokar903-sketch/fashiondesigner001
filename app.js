@@ -1875,33 +1875,51 @@ const SLIP_PRINT_CSS = `
 `;
 
 function openPrintWindow(bodyHTML, pageRule, css, maxWidthMm, isSlip){
-  const win = window.open('', '_blank');
-  if(!win){
-    showToast('Please allow pop-ups to print, then try again');
-    return;
-  }
+  // Remove any leftover print iframe from a previous attempt
+  const old = document.getElementById('fd-print-frame');
+  if(old) old.remove();
+
   const widthStyle = isSlip ? `width:${maxWidthMm}mm; margin:0 auto;` : `width:100%; max-width:${maxWidthMm}mm; margin:0 auto;`;
-  win.document.open();
-  win.document.write(`<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${escapeHTML(state.shopName || 'Fashion Designer')}</title>
 <style>
   ${pageRule}
   *{ box-sizing:border-box; }
-  body{ padding:16px; }
+  body{ padding:16px; margin:0; }
   .print-wrap{ ${widthStyle} }
   ${css}
 </style>
 </head>
 <body>
   <div class="print-wrap">${bodyHTML}</div>
-  <script>
-    window.onload = function(){
-      setTimeout(function(){ window.print(); }, 250);
-    };
-  </script>
-</body></html>`);
-  win.document.close();
+</body></html>`;
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'fd-print-frame';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = function(){
+    setTimeout(function(){
+      try{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }catch(err){
+        showToast('Could not open print dialog — try again');
+      }
+    }, 200);
+  };
 }
 
 function printReceipt(orderId){
