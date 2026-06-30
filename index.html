@@ -967,6 +967,15 @@
 
 <div class="toast" id="toast"></div>
 
+<div id="fd-print-area"></div>
+<style>
+  #fd-print-area{ display:none; }
+  @media print{
+    body > *:not(#fd-print-area){ display:none !important; }
+    #fd-print-area{ display:block !important; }
+  }
+</style>
+
 <script src="app.js"></script>
 </body>
 </html>

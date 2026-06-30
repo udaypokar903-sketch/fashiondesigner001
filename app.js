@@ -1331,9 +1331,17 @@ function formatMeasureValue(key, value, unit){
 function renderCustDetailMeasurementGrid(m){
   const grid = document.getElementById('custDetailMeasurements');
   if(m && m.values && Object.keys(m.values).some(k=>m.values[k])){
-    grid.innerHTML = Object.entries(m.values)
-      .filter(([k,v])=>v)
-      .map(([k,v])=>`<div class="info-row"><span class="k">${escapeHTML(k)}</span><span class="v">${formatMeasureValue(k,v,m.unit)}</span></div>`)
+    const orderedFields = getFieldTemplateFor(custDetailActiveGarment || '');
+    const valueKeys = Object.keys(m.values);
+    // Fields in the saved order first, then any leftover keys not in the template
+    // (e.g. fields that were renamed/removed after this measurement was saved)
+    const sortedKeys = [
+      ...orderedFields.filter(f => valueKeys.includes(f)),
+      ...valueKeys.filter(k => !orderedFields.includes(k))
+    ];
+    grid.innerHTML = sortedKeys
+      .filter(k=>m.values[k])
+      .map(k=>`<div class="info-row"><span class="k">${escapeHTML(k)}</span><span class="v">${formatMeasureValue(k,m.values[k],m.unit)}</span></div>`)
       .join('') + (m.notes ? `<div class="info-row"><span class="k">Notes</span><span class="v" style="text-align:right; max-width:65%;">${escapeHTML(m.notes)}</span></div>` : '');
   } else {
     grid.innerHTML = `<div class="info-row"><span class="k" style="color:var(--muted);">No measurements recorded for this garment yet</span></div>`;
@@ -1875,58 +1883,36 @@ const SLIP_PRINT_CSS = `
 `;
 
 function openPrintWindow(bodyHTML, pageRule, css, maxWidthMm, isSlip){
-  // Remove any leftover print iframe from a previous attempt
-  const old = document.getElementById('fd-print-frame');
-  if(old) old.remove();
-
+  const printArea = document.getElementById('fd-print-area');
   const widthStyle = isSlip ? `width:${maxWidthMm}mm; margin:0 auto;` : `width:100%; max-width:${maxWidthMm}mm; margin:0 auto;`;
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHTML(state.shopName || 'Fashion Designer')}</title>
-<style>
-  ${pageRule}
-  *{ box-sizing:border-box; }
-  body{ padding:16px; margin:0; }
-  .print-wrap{ ${widthStyle} }
-  ${css}
-</style>
-</head>
-<body>
-  <div class="print-wrap">${bodyHTML}</div>
-</body></html>`;
 
-  const iframe = document.createElement('iframe');
-  iframe.id = 'fd-print-frame';
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
+  // Remove any leftover print style block from a previous print
+  const oldStyle = document.getElementById('fd-print-style');
+  if(oldStyle) oldStyle.remove();
 
-  let printed = false;
-  function doPrint(){
-    if(printed) return;
-    printed = true;
-    try{
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }catch(err){
-      showToast('Could not open print dialog — try again');
+  const styleTag = document.createElement('style');
+  styleTag.id = 'fd-print-style';
+  styleTag.textContent = `
+    ${pageRule}
+    @media print{
+      #fd-print-area .print-wrap{ ${widthStyle} }
+      ${css}
     }
+  `;
+  document.head.appendChild(styleTag);
+  printArea.innerHTML = `<div class="print-wrap">${bodyHTML}</div>`;
+
+  function cleanup(){
+    window.removeEventListener('afterprint', cleanup);
+    printArea.innerHTML = '';
+    const s = document.getElementById('fd-print-style');
+    if(s) s.remove();
   }
-  iframe.onload = function(){ setTimeout(doPrint, 200); };
+  window.addEventListener('afterprint', cleanup);
 
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  // Fallback in case the load event doesn't fire (some Chrome/Firefox versions
-  // with document.write into an iframe) — guarantees print still triggers.
-  setTimeout(doPrint, 600);
+  setTimeout(function(){
+    window.print();
+  }, 50);
 }
 
 function printReceipt(orderId){
@@ -2045,9 +2031,14 @@ function printMeasurementSlip(customerId, onlyGarments){
       if(!m || !m.values || !Object.keys(m.values).some(k=>m.values[k])){
         return `<div class="slip-garment">${escapeHTML(g)}</div><div class="slip-meta" style="color:#888;">No measurements recorded</div>`;
       }
-      const rows = Object.entries(m.values)
-        .filter(([k,v])=>v)
-        .map(([k,v])=>`<div class="slip-row"><span>${escapeHTML(k)}</span><span>${formatMeasureValue(k,v,m.unit)}</span></div>`)
+      const orderedFields = getFieldTemplateFor(g);
+      const savedKeys = Object.keys(m.values).filter(k=>m.values[k]);
+      const sortedKeys = [
+        ...orderedFields.filter(f=>savedKeys.includes(f)),
+        ...savedKeys.filter(f=>!orderedFields.includes(f))
+      ];
+      const rows = sortedKeys
+        .map(k=>`<div class="slip-row"><span>${escapeHTML(k)}</span><span>${formatMeasureValue(k,m.values[k],m.unit)}</span></div>`)
         .join('');
       const notes = m.notes ? `<div class="slip-notes">Notes: ${escapeHTML(m.notes)}</div>` : '';
       return `<div class="slip-garment">${escapeHTML(g)}</div>${rows}${notes}`;
