@@ -1446,7 +1446,47 @@ function openMeasureSheet(customerId, presetGarment){
 
   loadMeasureFieldsForGarment(initialGarment);
   document.getElementById('measureSheetOverlay').dataset.customerId = customerId;
+
+  // "Set as default" tool: pick another customer's field names for this garment and make
+  // them the shop-wide default for everyone. Available whenever there's another customer to copy from.
+  const copyField = document.getElementById('copyMeasureField');
+  const others = state.customers.filter(o=>o.id!==customerId);
+  if(others.length){
+    const copySelect = document.getElementById('copyMeasureCustomerSelect');
+    copySelect.innerHTML = others.map(o=>`<option value="${o.id}">${escapeHTML(o.name)}</option>`).join('');
+    copyField.style.display = 'block';
+  } else {
+    copyField.style.display = 'none';
+  }
+
   openSheet('measureSheetOverlay');
+}
+
+// Copies only the FIELD NAMES (e.g. "Chest", "Shoulder") from another customer's
+// measurement sheet for the currently selected garment — never their numeric values.
+function copyMeasureFieldNamesFromCustomer(){
+  const sourceId = document.getElementById('copyMeasureCustomerSelect').value;
+  if(!sourceId) return;
+  const source = customerById(sourceId);
+  if(!source){ showToast('Customer not found'); return; }
+
+  const garment = document.getElementById('measureGarmentSelect').value;
+  const sourceByGarment = getMeasurementsByGarment(source);
+  const sourceEntry = sourceByGarment[garment];
+  const fieldNames = sourceEntry && sourceEntry.values ? Object.keys(sourceEntry.values) : null;
+
+  if(!fieldNames || !fieldNames.length){
+    showToast(`${source.name} has no "${garment}" fields to copy`);
+    return;
+  }
+
+  state.measureFields = [...fieldNames];
+  state.measureValues = {}; // intentionally left blank — only names are copied, not numbers
+  renderMeasureGrid();
+  // Save as the shop-wide default for this garment, so every customer (existing & future)
+  // gets these field names automatically — you only need to do this once.
+  persistGarmentFieldTemplate(garment);
+  showToast(`Saved as default "${garment}" fields for all customers`);
 }
 
 function onMeasureGarmentChange(){

@@ -937,6 +937,16 @@
     <div class="sheet-handle"></div>
     <div class="sheet-title">Measurements</div>
 
+    <div class="field" id="copyMeasureField" style="display:none;">
+      <label>Set default field names for ALL customers (one time, no numbers)</label>
+      <div class="search-row">
+        <div class="search-box" style="flex:1;">
+          <select id="copyMeasureCustomerSelect"></select>
+        </div>
+        <button class="btn btn-outline" style="flex-shrink:0;" onclick="copyMeasureFieldNamesFromCustomer()">Set as default</button>
+      </div>
+    </div>
+
     <div class="field">
       <label>Garment type</label>
       <select id="measureGarmentSelect" onchange="onMeasureGarmentChange()"></select>
