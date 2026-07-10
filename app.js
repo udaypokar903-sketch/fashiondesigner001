@@ -145,6 +145,35 @@ function dbClear(storeName){
   });
 }
 
+/* ---------------- Deletion tombstones ----------------
+   Records ids that were deleted so a stale local copy (this device or
+   another) can never accidentally re-upload/resurrect them into the cloud. */
+async function markDeletedLocally(id){
+  try{
+    const rec = await dbGetMeta('deletedIds');
+    const ids = (rec && Array.isArray(rec.value)) ? rec.value : [];
+    if(!ids.includes(id)){
+      ids.push(id);
+      if(ids.length > 5000) ids.splice(0, ids.length - 5000); // cap growth
+      await dbPut('meta', { key:'deletedIds', value: ids });
+    }
+  }catch(err){ console.warn('markDeletedLocally failed', err); }
+}
+async function getDeletedIdSet(){
+  try{
+    const rec = await dbGetMeta('deletedIds');
+    return new Set((rec && Array.isArray(rec.value)) ? rec.value : []);
+  }catch(err){ return new Set(); }
+}
+function dbGetMeta(key){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('meta', 'readonly');
+    const req = tx.objectStore('meta').get(key);
+    req.onsuccess = ()=> resolve(req.result || null);
+    req.onerror = (e)=> reject(e);
+  });
+}
+
 function uid(){
   return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 }
@@ -441,6 +470,7 @@ function startCloudSync(shopId){
         const data = { ...change.doc.data(), id: change.doc.id };
         if(change.type === 'removed'){
           await dbDelete('customers', change.doc.id);
+          await markDeletedLocally(change.doc.id);
           state.customers = state.customers.filter(c=>c.id !== change.doc.id);
         } else {
           await dbPut('customers', data);
@@ -465,6 +495,7 @@ function startCloudSync(shopId){
         const data = { ...change.doc.data(), id: change.doc.id };
         if(change.type === 'removed'){
           await dbDelete('orders', change.doc.id);
+          await markDeletedLocally(change.doc.id);
           state.orders = state.orders.filter(o=>o.id !== change.doc.id);
         } else {
           await dbPut('orders', data);
@@ -516,9 +547,16 @@ function startCloudSync(shopId){
 
 async function pushLocalDataToCloud(){
   try{
+    const deletedIds = await getDeletedIdSet();
     const batchOps = [];
-    for(const c of state.customers) batchOps.push(shopCollection('customers').doc(c.id).set(c, { merge:true }));
-    for(const o of state.orders) batchOps.push(shopCollection('orders').doc(o.id).set(o, { merge:true }));
+    for(const c of state.customers){
+      if(deletedIds.has(c.id)) continue;
+      batchOps.push(shopCollection('customers').doc(c.id).set(c, { merge:true }));
+    }
+    for(const o of state.orders){
+      if(deletedIds.has(o.id)) continue;
+      batchOps.push(shopCollection('orders').doc(o.id).set(o, { merge:true }));
+    }
     await Promise.all(batchOps);
   }catch(err){
     console.warn('Initial cloud push failed (will retry via normal saves):', err);
@@ -528,6 +566,8 @@ async function pushLocalDataToCloud(){
 async function syncToCloud(collectionName, docData){
   if(!currentShopId || isApplyingRemote) return;
   try{
+    const deletedIds = await getDeletedIdSet();
+    if(deletedIds.has(docData.id)) return;
     await shopCollection(collectionName).doc(docData.id).set(docData, { merge:true });
   }catch(err){
     console.warn('Cloud sync deferred (offline?) for', collectionName, err);
@@ -1399,9 +1439,11 @@ async function deleteCurrentCustomer(){
   const ordersToDelete = state.orders.filter(o=>o.customerId===customerId);
   for(const o of ordersToDelete){
     await dbDelete('orders', o.id);
+    await markDeletedLocally(o.id);
     syncDeleteFromCloud('orders', o.id);
   }
   await dbDelete('customers', customerId);
+  await markDeletedLocally(customerId);
   syncDeleteFromCloud('customers', customerId);
 
   state.orders = state.orders.filter(o=>o.customerId!==customerId);
@@ -1882,6 +1924,7 @@ async function saveOrderNotes(){
 async function deleteCurrentOrder(){
   if(!confirm('Delete this order? This cannot be undone.')) return;
   await dbDelete('orders', state.currentOrderId);
+  await markDeletedLocally(state.currentOrderId);
   syncDeleteFromCloud('orders', state.currentOrderId);
   state.orders = state.orders.filter(o=>o.id !== state.currentOrderId);
   renderAll();
