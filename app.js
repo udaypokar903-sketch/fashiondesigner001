@@ -78,6 +78,7 @@ let state = {
   currentCustomerId: null,
   currentOrderId: null,
   orderFilter: 'all',
+  orderDateFilter: 'all',
   measureUnit: 'in',
   measureFields: [],
   measureValues: {},
@@ -691,7 +692,7 @@ function emptyStateHTML(label, hint){
 
 function renderHomeOrders(){
   const q = (document.getElementById('homeSearch').value || '').toLowerCase().trim();
-  let orders = [...visibleOrders()].sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+  let orders = [...visibleOrders()].sort((a,b)=> (b.updatedAt||b.createdAt||0) - (a.updatedAt||a.createdAt||0));
   if(q){
     orders = orders.filter(o=>{
       const cust = customerById(o.customerId);
@@ -709,6 +710,15 @@ function renderOrdersList(){
   if(state.orderFilter !== 'all'){
     orders = orders.filter(o=>o.status === state.orderFilter);
   }
+  if(state.orderDateFilter !== 'all'){
+    const days = parseInt(state.orderDateFilter, 10);
+    const cutoff = Date.now() - days*86400000;
+    orders = orders.filter(o=>{
+      // Prefer when the order was actually placed; fall back to creation time
+      const ts = o.orderDate ? new Date(o.orderDate+'T00:00:00').getTime() : (o.createdAt || 0);
+      return ts >= cutoff;
+    });
+  }
   if(q){
     orders = orders.filter(o=>{
       const cust = customerById(o.customerId);
@@ -720,6 +730,11 @@ function renderOrdersList(){
   orders.sort((a,b)=> (a.dueDate||'9999').localeCompare(b.dueDate||'9999'));
   const el = document.getElementById('ordersList');
   el.innerHTML = orders.length ? orders.map(ticketHTML).join('') : emptyStateHTML('No orders here', 'Try a different filter or search');
+}
+
+function onOrderDateFilterChange(){
+  state.orderDateFilter = document.getElementById('orderDateFilter').value;
+  renderOrdersList();
 }
 
 
@@ -1877,6 +1892,7 @@ async function updateOrderAssignment(){
   const workerId = document.getElementById('orderAssignSelect').value;
   order.assignedTo = workerId || null;
   if(!workerId) order.workerPayment = 0;
+  order.updatedAt = Date.now();
   await dbPut('orders', order);
   syncToCloud('orders', order);
   renderAll();
@@ -1897,6 +1913,7 @@ async function saveWorkerPayment(){
   if(!order) return;
   const amount = parseFloat(document.getElementById('orderWorkerPayment').value) || 0;
   order.workerPayment = amount;
+  order.updatedAt = Date.now();
   await dbPut('orders', order);
   syncToCloud('orders', order);
   showToast('Worker payment saved');
@@ -1906,6 +1923,7 @@ async function updateOrderStatus(status){
   const order = state.orders.find(o=>o.id===state.currentOrderId);
   if(!order) return;
   order.status = status;
+  order.updatedAt = Date.now();
   await dbPut('orders', order);
   syncToCloud('orders', order);
   document.querySelectorAll('#orderStatusSeg button').forEach(b=>b.classList.toggle('active', b.dataset.status===status));
@@ -1917,6 +1935,7 @@ async function saveOrderNotes(){
   const order = state.orders.find(o=>o.id===state.currentOrderId);
   if(!order) return;
   order.notes = document.getElementById('orderNotesField').value.trim();
+  order.updatedAt = Date.now();
   await dbPut('orders', order);
   syncToCloud('orders', order);
 }

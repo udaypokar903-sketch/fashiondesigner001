@@ -558,6 +558,12 @@
       <button data-filter="ready">Ready</button>
       <button data-filter="delivered">Delivered</button>
     </div>
+    <select id="orderDateFilter" style="margin-top:10px;" onchange="onOrderDateFilterChange()">
+      <option value="all">All time</option>
+      <option value="7">Last 7 days</option>
+      <option value="30">Last month</option>
+      <option value="90">Last 3 months</option>
+    </select>
     <div id="ordersList"></div>
   </div>
 
