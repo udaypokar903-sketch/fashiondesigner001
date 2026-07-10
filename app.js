@@ -436,18 +436,23 @@ function startCloudSync(shopId){
   // Listen for customers
   unsubCustomers = shopCollection('customers').onSnapshot(async (snap)=>{
     isApplyingRemote = true;
-    for(const change of snap.docChanges()){
-      const data = { ...change.doc.data(), id: change.doc.id };
-      if(change.type === 'removed'){
-        await dbDelete('customers', change.doc.id);
-        state.customers = state.customers.filter(c=>c.id !== change.doc.id);
-      } else {
-        await dbPut('customers', data);
-        const idx = state.customers.findIndex(c=>c.id===data.id);
-        if(idx>=0) state.customers[idx] = data; else state.customers.push(data);
+    try{
+      for(const change of snap.docChanges()){
+        const data = { ...change.doc.data(), id: change.doc.id };
+        if(change.type === 'removed'){
+          await dbDelete('customers', change.doc.id);
+          state.customers = state.customers.filter(c=>c.id !== change.doc.id);
+        } else {
+          await dbPut('customers', data);
+          const idx = state.customers.findIndex(c=>c.id===data.id);
+          if(idx>=0) state.customers[idx] = data; else state.customers.push(data);
+        }
       }
+    }catch(err){
+      console.warn('customer sync apply error', err);
+    }finally{
+      isApplyingRemote = false;
     }
-    isApplyingRemote = false;
     renderAll();
     if(state.view==='customer-detail' && state.currentCustomerId) openCustomerDetail(state.currentCustomerId);
   }, (err)=>{ console.warn('customer sync error', err); });
@@ -455,18 +460,23 @@ function startCloudSync(shopId){
   // Listen for orders
   unsubOrders = shopCollection('orders').onSnapshot(async (snap)=>{
     isApplyingRemote = true;
-    for(const change of snap.docChanges()){
-      const data = { ...change.doc.data(), id: change.doc.id };
-      if(change.type === 'removed'){
-        await dbDelete('orders', change.doc.id);
-        state.orders = state.orders.filter(o=>o.id !== change.doc.id);
-      } else {
-        await dbPut('orders', data);
-        const idx = state.orders.findIndex(o=>o.id===data.id);
-        if(idx>=0) state.orders[idx] = data; else state.orders.push(data);
+    try{
+      for(const change of snap.docChanges()){
+        const data = { ...change.doc.data(), id: change.doc.id };
+        if(change.type === 'removed'){
+          await dbDelete('orders', change.doc.id);
+          state.orders = state.orders.filter(o=>o.id !== change.doc.id);
+        } else {
+          await dbPut('orders', data);
+          const idx = state.orders.findIndex(o=>o.id===data.id);
+          if(idx>=0) state.orders[idx] = data; else state.orders.push(data);
+        }
       }
+    }catch(err){
+      console.warn('order sync apply error', err);
+    }finally{
+      isApplyingRemote = false;
     }
-    isApplyingRemote = false;
     renderAll();
     if(state.view==='order-detail' && state.currentOrderId) openOrderDetail(state.currentOrderId);
   }, (err)=>{ console.warn('order sync error', err); });
@@ -521,6 +531,9 @@ async function syncToCloud(collectionName, docData){
     await shopCollection(collectionName).doc(docData.id).set(docData, { merge:true });
   }catch(err){
     console.warn('Cloud sync deferred (offline?) for', collectionName, err);
+    if(err && (err.code === 'invalid-argument' || /longer than|exceeds|too large/i.test(err.message||''))){
+      showToast('Saved locally, but this item is too large to sync online (try a smaller photo)');
+    }
   }
 }
 
@@ -1227,14 +1240,14 @@ function bindPhotoInput(){
 function compressImage(dataUrl, callback){
   const img = new Image();
   img.onload = ()=>{
-    const maxSide = 900;
+    const maxSide = 640;
     let { width, height } = img;
     if(width > height && width > maxSide){ height = Math.round(height * (maxSide/width)); width = maxSide; }
     else if(height > maxSide){ width = Math.round(width * (maxSide/height)); height = maxSide; }
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-    callback(canvas.toDataURL('image/jpeg', 0.72));
+    callback(canvas.toDataURL('image/jpeg', 0.6));
   };
   img.onerror = ()=> callback(dataUrl);
   img.src = dataUrl;
