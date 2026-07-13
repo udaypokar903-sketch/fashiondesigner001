@@ -148,7 +148,11 @@ function dbClear(storeName){
 
 /* ---------------- Deletion tombstones ----------------
    Records ids that were deleted so a stale local copy (this device or
-   another) can never accidentally re-upload/resurrect them into the cloud. */
+   another) can never accidentally re-upload/resurrect them into the cloud.
+   Stored BOTH locally (fast, works offline) AND in the shop's cloud doc
+   (shared across every device) — a device that was offline/closed when the
+   delete happened still needs to learn about it before it pushes its own
+   stale local copy back up. */
 async function markDeletedLocally(id){
   try{
     const rec = await dbGetMeta('deletedIds');
@@ -160,11 +164,34 @@ async function markDeletedLocally(id){
     }
   }catch(err){ console.warn('markDeletedLocally failed', err); }
 }
+function markDeletedInCloud(id){
+  if(!currentShopId) return;
+  fbDb.collection('shops').doc(currentShopId).set({
+    deletedIds: firebase.firestore.FieldValue.arrayUnion(id)
+  }, { merge:true }).catch(err=> console.warn('markDeletedInCloud failed', err));
+}
 async function getDeletedIdSet(){
   try{
     const rec = await dbGetMeta('deletedIds');
     return new Set((rec && Array.isArray(rec.value)) ? rec.value : []);
   }catch(err){ return new Set(); }
+}
+// Pulls the shared cloud tombstone list and merges it into local storage,
+// so this device also learns about deletions made on other devices.
+async function syncDeletedIdsFromCloud(){
+  if(!currentShopId) return new Set();
+  try{
+    const doc = await fbDb.collection('shops').doc(currentShopId).get();
+    const cloudIds = (doc.exists && Array.isArray(doc.data().deletedIds)) ? doc.data().deletedIds : [];
+    const rec = await dbGetMeta('deletedIds');
+    const localIds = (rec && Array.isArray(rec.value)) ? rec.value : [];
+    const merged = Array.from(new Set([...localIds, ...cloudIds]));
+    await dbPut('meta', { key:'deletedIds', value: merged });
+    return new Set(merged);
+  }catch(err){
+    console.warn('syncDeletedIdsFromCloud failed', err);
+    return await getDeletedIdSet();
+  }
 }
 function dbGetMeta(key){
   return new Promise((resolve, reject)=>{
@@ -548,7 +575,7 @@ function startCloudSync(shopId){
 
 async function pushLocalDataToCloud(){
   try{
-    const deletedIds = await getDeletedIdSet();
+    const deletedIds = await syncDeletedIdsFromCloud();
     const batchOps = [];
     for(const c of state.customers){
       if(deletedIds.has(c.id)) continue;
@@ -559,6 +586,18 @@ async function pushLocalDataToCloud(){
       batchOps.push(shopCollection('orders').doc(o.id).set(o, { merge:true }));
     }
     await Promise.all(batchOps);
+    // Drop any tombstoned records that are still lingering in local state/storage
+    const toPurge = [...state.customers.filter(c=>deletedIds.has(c.id)).map(c=>c.id),
+                      ...state.orders.filter(o=>deletedIds.has(o.id)).map(o=>o.id)];
+    if(toPurge.length){
+      for(const id of toPurge){
+        await dbDelete('customers', id).catch(()=>{});
+        await dbDelete('orders', id).catch(()=>{});
+      }
+      state.customers = state.customers.filter(c=>!deletedIds.has(c.id));
+      state.orders = state.orders.filter(o=>!deletedIds.has(o.id));
+      renderAll();
+    }
   }catch(err){
     console.warn('Initial cloud push failed (will retry via normal saves):', err);
   }
@@ -1455,10 +1494,12 @@ async function deleteCurrentCustomer(){
   for(const o of ordersToDelete){
     await dbDelete('orders', o.id);
     await markDeletedLocally(o.id);
+    markDeletedInCloud(o.id);
     syncDeleteFromCloud('orders', o.id);
   }
   await dbDelete('customers', customerId);
   await markDeletedLocally(customerId);
+  markDeletedInCloud(customerId);
   syncDeleteFromCloud('customers', customerId);
 
   state.orders = state.orders.filter(o=>o.customerId!==customerId);
@@ -1944,6 +1985,7 @@ async function deleteCurrentOrder(){
   if(!confirm('Delete this order? This cannot be undone.')) return;
   await dbDelete('orders', state.currentOrderId);
   await markDeletedLocally(state.currentOrderId);
+  markDeletedInCloud(state.currentOrderId);
   syncDeleteFromCloud('orders', state.currentOrderId);
   state.orders = state.orders.filter(o=>o.id !== state.currentOrderId);
   renderAll();
