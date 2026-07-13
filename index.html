@@ -236,6 +236,15 @@
     background: var(--card); font-family:inherit; font-size:14.5px; color:var(--ink); outline:none;
   }
   .field input:focus, .field select:focus, .field textarea:focus{ border-color: var(--chalk); }
+  #orderDateFilter{
+    width:100%; padding:12px 13px; border-radius:11px; border:1px solid var(--border);
+    background: var(--card); font-family:inherit; font-size:14px; font-weight:600; color:var(--ink);
+    outline:none; -webkit-appearance:none; appearance:none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23716b63' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position: right 13px center; background-size:16px;
+    padding-right: 36px;
+  }
+  #orderDateFilter:focus{ border-color: var(--chalk); }
   .field textarea{ resize:vertical; min-height:64px; }
   .row-2{ display:flex; gap:10px; }
   .row-2 .field{ flex:1; }
